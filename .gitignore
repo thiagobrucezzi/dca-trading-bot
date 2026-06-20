@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+data/*.parquet
+data/portfolio_*.json
+reports/dca_ledger_*.csv
+*.log
+.env
+.DS_Store
