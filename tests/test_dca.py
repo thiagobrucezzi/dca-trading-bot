@@ -97,6 +97,16 @@ class RunOnceTest(unittest.TestCase):
         self.assertIsNotNone(r1)
         self.assertIsNone(r2)
 
+    def test_run_once_raises_and_records_nothing_on_failure(self):
+        with mock.patch.dict("os.environ", {"BOT_MODE": TEST_MODE}), \
+             mock.patch("src.dca.execute_buy", side_effect=RuntimeError("API caída")):
+            now = datetime(2026, 7, 15, tzinfo=timezone.utc)
+            with self.assertRaises(RuntimeError):
+                run_once(now=now, notify=False)
+        # un aporte fallido NO debe quedar registrado
+        from src.dca import period_key
+        self.assertFalse(Portfolio(TEST_MODE).bought_in_period(period_key(now, "monthly")))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
