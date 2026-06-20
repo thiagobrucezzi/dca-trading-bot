@@ -53,6 +53,7 @@ def execute_buy(symbol, quote_amount):
 
     # testnet / live: orden market real
     ex = _authed()
+    ex.load_markets()  # necesario antes de amount_to_precision / filtros del símbolo
     price = get_price(symbol)
     units = float(ex.amount_to_precision(symbol, quote_amount / price))
     order = ex.create_market_buy_order(symbol, units)
