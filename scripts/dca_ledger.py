@@ -1,7 +1,7 @@
-"""Libro mayor del DCA: historial completo + export CSV (costo base p/ impuestos).
+"""Libro mayor del DCA: historial completo + export CSV.
 
 Muestra CADA compra con su fecha, precio y unidades, y los acumulados.
-Escribe reports/dca_ledger_<modo>.csv para tu contador / declaración.
+Escribe reports/dca_ledger_<modo>.csv como registro de tus transacciones.
 """
 import csv
 import sys
@@ -44,4 +44,4 @@ if __name__ == "__main__":
         for b in rows:
             w.writerow([b["ts"], b.get("period", ""), b["symbol"], b["price"],
                         b["units"], b["quote_spent"], b.get("fee", 0)])
-    print(f"\nCSV (costo base para impuestos): {out}")
+    print(f"\nCSV (registro de transacciones): {out}")

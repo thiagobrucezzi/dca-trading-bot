@@ -120,7 +120,7 @@ git push -u origin <tu-rama>
 ```bash
 .venv/bin/python scripts/run_dca.py        # aporta si toca (idempotente)
 .venv/bin/python scripts/dca_status.py     # estado + análisis de salida
-.venv/bin/python scripts/dca_ledger.py     # historial completo + CSV impuestos
+.venv/bin/python scripts/dca_ledger.py     # historial completo + CSV de transacciones
 .venv/bin/python scripts/dca_backtest.py   # validación histórica
 .venv/bin/python tests/test_dca.py         # tests
 ```
