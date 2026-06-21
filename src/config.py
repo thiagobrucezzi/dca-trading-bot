@@ -1,4 +1,5 @@
 """Configuracion central del bot. Todo lo que se toca a mano vive aca."""
+import os
 
 # --- Universo de activos a evaluar (ranking por momentum) ---
 # Empezamos con majors liquidos. SOL/AVAX/etc no existian antes de ~2020,
@@ -36,9 +37,10 @@ WF_SPLIT = "2023-01-01"   # train: < split | test: >= split (el modelo nunca lo 
 # ============================================================
 # DCA — estrategia activa actual (el BENCHMARK que un bot debe vencer)
 # ============================================================
-DCA_SYMBOL = "BTC/USDT"
-DCA_AMOUNT = 50.0          # USDT por aporte
-DCA_FREQUENCY = "monthly"  # monthly | weekly | daily
+# Configurables por .env (sin tocar código). Default entre paréntesis.
+DCA_SYMBOL = os.environ.get("DCA_SYMBOL", "BTC/USDT")
+DCA_AMOUNT = float(os.environ.get("DCA_AMOUNT", "50"))        # USDT por aporte
+DCA_FREQUENCY = os.environ.get("DCA_FREQUENCY", "monthly")   # monthly | weekly | daily
 
 # --- Filtro de regimen (el "Guardian") ---
 REGIME_SYMBOL = "BTC/USDT"
