@@ -1,186 +1,192 @@
 # dca-trading-bot
 
-Bot de inversión sistemática (DCA) sobre Binance, con alertas a Telegram y deploy
-24/7 en Oracle Cloud. Filosofía: **primero no perder**.
+A simple, honest **Dollar-Cost Averaging (DCA)** bot for Binance — with Telegram
+alerts and free 24/7 deployment on Oracle Cloud. Philosophy: **don't lose money first**.
+
+Fork it, point it at your own Binance + Telegram, and run your own DCA. It's built
+to be safe to learn with: start in a no-money simulation, graduate to the testnet
+(fake money), and only go live when *you* decide.
+
+> ⚠️ **Not financial advice.** This is an educational/personal tool. You are
+> responsible for your own funds and decisions.
 
 ---
 
-## 📖 La historia (por qué DCA y no un bot "inteligente")
+## 📖 Why DCA (and not a "smart" bot)
 
-Antes de llegar al DCA, probamos dos estrategias activas con validación rigurosa
-(walk-forward + holdout intacto):
+This project started as an attempt to build a predictive trading bot. We tried two
+strategies with rigorous validation (walk-forward + an untouched holdout):
 
-- **Momentum rotation** → overfitting. Sharpe OOS ~0.5-0.8, drawdown -50/-60%. ❌
-- **Mean-reversion** → walk-forward multi-fold 0/4 folds, Sharpe promedio OOS -0.26. ❌
+- **Momentum rotation** → overfitting. Out-of-sample Sharpe ~0.5-0.8, drawdown -50/-60%. ❌
+- **Mean-reversion** → multi-fold walk-forward 0/4 folds passed, avg OOS Sharpe -0.26. ❌
 
-**Ninguna pasó la vara** (Sharpe ≥ 1.0 y MaxDD > -35%). Conclusión: para capital de
-aprendizaje, un **DCA sobre BTC** es la decisión racional, y queda como el
-**benchmark que cualquier bot futuro debe vencer en OOS** para merecer plata real.
-El valor del proyecto fue el *proceso*: descubrir gratis que esas estrategias no
-tienen edge, en vez de perder plata averiguándolo. El código de research queda
-archivado en `research/` (ver `research/README.md`).
-
----
-
-## ⚙️ Cómo funciona
-
-- **DCA (Dollar-Cost Averaging)**: compra un monto fijo de BTC cada período fijo,
-  sin importar el precio. No predice nada; se sube a la tendencia de largo plazo.
-- **Solo compra, nunca vende** (por diseño). Vender es decisión tuya.
-- **Idempotente**: el cron lo corre todos los días, pero solo aporta 1× por período
-  (mes/semana/día). Correrlo de más no duplica compras.
-- **Resiliente**: si un aporte falla (red, exchange caído, sin saldo), te avisa por
-  Telegram en vez de fallar en silencio.
-- **3 modos** (`BOT_MODE`):
-  - `simulate` — sin API keys, registra al precio público. Para arrancar.
-  - `testnet` — órdenes reales en la testnet de Binance (plata **falsa**).
-  - `live` — plata **real** (solo cuando decidas, Fase 3).
+**Neither cleared the bar** (Sharpe ≥ 1.0 and MaxDD > -35%). The honest conclusion:
+simple technical strategies on liquid daily crypto have no durable edge after costs.
+So a **plain DCA on BTC** becomes both the strategy and the **benchmark any future
+bot must beat in out-of-sample validation** to deserve real money. The failed
+research lives in `research/` (kept as the walk-forward harness).
 
 ---
 
-## 🚀 Setup completo paso a paso
+## ⚙️ How it works
 
-### 0. Local (tu Mac)
+- **DCA**: buys a fixed amount of BTC every fixed period, regardless of price. It
+  doesn't predict anything; it rides the long-term trend and averages your entry.
+- **Buy-only by design.** Selling is your decision, never the bot's.
+- **Idempotent**: the cron runs daily, but it only buys once per period
+  (month/week/day). Running it again does nothing.
+- **Resilient**: if a buy fails (network, exchange down, no balance), it alerts you
+  on Telegram instead of failing silently.
+- **3 modes** (`BOT_MODE`):
+  - `simulate` — no API keys, records at the public price. Start here.
+  - `testnet` — real orders on Binance testnet (**fake** money).
+  - `live` — **real** money (only when you choose).
+
+---
+
+## 🚀 Setup
+
+### 0. Local
 
 ```bash
 git clone https://github.com/thiagobrucezzi/dca-trading-bot.git
 cd dca-trading-bot
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-cp .env.example .env          # editá según los pasos siguientes
+cp .env.example .env
 ```
 
-### 1. Telegram (alertas y reportes)
+Run it immediately in simulation (no keys needed):
+```bash
+.venv/bin/python scripts/run_dca.py        # records a buy at the live public price
+.venv/bin/python scripts/dca_status.py     # portfolio status + exit analysis
+```
 
-1. En Telegram, hablá con **@BotFather** → `/newbot` → copiá el **token**.
-2. Mandale cualquier mensaje a tu bot nuevo (para que exista el chat).
-3. Conseguí tu CHAT_ID:
+### 1. Telegram (alerts & reports)
+
+1. In Telegram, talk to **@BotFather** → `/newbot` → copy the **token**.
+2. Send any message to your new bot (so the chat exists).
+3. Get your chat id:
    ```bash
-   export TELEGRAM_BOT_TOKEN="tu-token"
-   .venv/bin/python scripts/test_telegram.py     # imprime tu CHAT_ID
+   export TELEGRAM_BOT_TOKEN="your-token"
+   .venv/bin/python scripts/test_telegram.py     # prints your CHAT_ID
    ```
-4. Completá en `.env`:
+4. Fill in `.env`:
    ```
    TELEGRAM_BOT_TOKEN=...
    TELEGRAM_CHAT_ID=...
    ```
-5. Verificá: `.venv/bin/python scripts/test_telegram.py` → te llega "Bot conectado".
 
-### 2. Binance Testnet (paper trading, plata falsa)
+### 2. Binance Testnet (paper trading, fake money)
 
-Cómo obtener las API keys de testnet (paso a paso, tal como lo hicimos):
+How to get testnet API keys, step by step:
 
-1. Entrá a **https://testnet.binance.vision** y hacé **login con GitHub**.
-2. Click en **"Generate HMAC_SHA256 Key"**.
-3. **Description**: un nombre corto (ej. `Test-DCA`).
-4. **Key permissions**: marcá **TRADE** (colocar órdenes) y **USER_DATA** (ver
-   balance). `USER_STREAM` es opcional. *Sin TRADE, el bot no puede comprar.*
-5. **Commissions/Fee**: elegí **0.1%** (no "none") para simular condiciones reales.
-6. **Guardá el API Key y el Secret AHORA** — el Secret se muestra **una sola vez**.
-   Si lo perdés, generás una key nueva.
-7. En `.env`:
+1. Go to **https://testnet.binance.vision** and **log in with GitHub**.
+2. Click **"Generate HMAC_SHA256 Key"**.
+3. **Description**: a short name (e.g. `dca-bot`).
+4. **Key permissions**: enable **TRADE** (place orders) and **USER_DATA** (read
+   balance). `USER_STREAM` is optional. *Without TRADE the bot cannot buy.*
+5. **Commission**: pick **0.1%** (not "none") to simulate realistic conditions.
+6. **Save the API Key and Secret now** — the Secret is shown **only once**.
+7. Fill in `.env`:
    ```
    BOT_MODE=testnet
    BINANCE_API_KEY=...
    BINANCE_API_SECRET=...
    ```
-8. Validá y hacé el primer aporte:
+8. Validate and make the first buy:
    ```bash
    set -a && . ./.env && set +a
-   .venv/bin/python scripts/test_testnet.py    # ✅ conexión + balance (te da ~10.000 USDT)
-   .venv/bin/python scripts/run_dca.py          # primer aporte (testnet)
-   .venv/bin/python scripts/dca_status.py       # estado a Telegram
+   .venv/bin/python scripts/test_testnet.py    # ✅ connection + balance (gives ~10,000 fake USDT)
+   .venv/bin/python scripts/run_dca.py          # first buy (testnet)
+   .venv/bin/python scripts/dca_status.py       # status to Telegram
    ```
 
-> **Notas de la testnet:**
-> - Te fondea automáticamente con balances ficticios (USDT, BTC, etc.).
-> - **Se resetea ~1 vez por mes** (borra balances y órdenes), pero **conserva las
->   API keys**. Tras un reset, el `portfolio_testnet.json` del bot puede quedar
->   desfasado del saldo real de testnet — es esperable, es un sandbox efímero.
-> - Solo sirven los endpoints `/api` (spot). No hay retiros ni transferencias.
+> **Testnet notes:** it auto-funds you with fake balances and **resets ~monthly**
+> (wipes balances/orders) while **keeping your API keys**. Only `/api` (spot)
+> endpoints work; no withdrawals.
 
-### 3. Deploy en Oracle Cloud (24/7 gratis)
+### 3. Deploy on Oracle Cloud (free 24/7)
 
-Guía detallada: [`docs/DEPLOY_ORACLE.md`](docs/DEPLOY_ORACLE.md). Resumen:
+Full guide: [`docs/DEPLOY_ORACLE.md`](docs/DEPLOY_ORACLE.md). Summary:
 
-1. **Crear la red**: Networking → VCN → *Start VCN Wizard* → "VCN with Internet
-   Connectivity". Crea VCN + subnet público + internet gateway.
-2. **Crear la VM**: Compute → Instances → Create:
-   - Ubuntu 24.04 · Shape **VM.Standard.A1.Flex** (o **E2.1.Micro** si A1 está "out
+1. **Create the network**: Networking → VCN → *Start VCN Wizard* → "VCN with
+   Internet Connectivity" (creates VCN + public subnet + internet gateway).
+2. **Create the VM**: Compute → Instances → Create:
+   - Ubuntu 24.04 · Shape **VM.Standard.A1.Flex** (or **E2.1.Micro** if A1 is "out
      of capacity") · **Always Free**
-   - Networking → seleccioná la VCN y el **subnet público** → activá
+   - Networking → pick the VCN and the **public subnet** → enable
      **"Automatically assign public IPv4 address"**
-   - SSH keys → generá y **descargá la clave privada**
-3. **Conectarte y desplegar**:
+   - SSH keys → generate and **download the private key**
+3. **Connect and deploy**:
    ```bash
    chmod 600 ~/Downloads/ssh-key-*.key
-   ssh -i ~/Downloads/ssh-key-*.key ubuntu@TU_IP_PUBLICA
-   # en la VM:
+   ssh -i ~/Downloads/ssh-key-*.key ubuntu@YOUR_PUBLIC_IP
+   # on the VM:
    sudo apt update && sudo apt install -y python3.12-venv git
    git clone https://github.com/thiagobrucezzi/dca-trading-bot.git
    cd dca-trading-bot && python3 -m venv .venv && .venv/bin/pip install ccxt
-   nano .env          # pegá tu .env (testnet)
+   nano .env          # paste your .env (testnet)
    set -a && . ./.env && set +a
    .venv/bin/python scripts/test_testnet.py
    ```
 
-### 4. Cron (que aporte solo)
+### 4. Cron (run automatically)
 
-En la VM, `crontab -e`:
+On the VM, `crontab -e`:
 ```cron
 5  9 * * *  cd ~/dca-trading-bot && set -a && . ./.env && set +a && .venv/bin/python scripts/run_dca.py    >> bot.log 2>&1
 10 9 * * 1  cd ~/dca-trading-bot && set -a && . ./.env && set +a && .venv/bin/python scripts/dca_status.py >> bot.log 2>&1
 ```
-`run_dca.py` corre diario pero solo aporta 1× por período (según `DCA_FREQUENCY`).
-Horario en **UTC** (09:05 UTC = 06:05 Argentina).
+`run_dca.py` runs daily but only buys once per `DCA_FREQUENCY` period. Times are
+**UTC**.
 
-### 5. Binance LIVE (plata real — Fase 3, más adelante)
+### 5. Going LIVE (real money — only when you're ready)
 
-Solo cuando tengas semanas de testnet andando bien:
-1. En Binance (cuenta real) → API Management → crear key con permisos **solo Spot
-   Trading**. **NUNCA habilites retiros (withdrawals).**
-2. Restringí la key a la **IP pública de la VM** (whitelist).
-3. En `.env`: `BOT_MODE=live` + las keys reales.
-4. Empezá con `DCA_AMOUNT` chico.
+After weeks of testnet running cleanly:
+1. Create API keys on your **real** Binance account → **Spot Trading only**.
+   **NEVER enable withdrawals.** Whitelist the VM's public IP.
+2. In `.env`: `BOT_MODE=live` + the real keys.
+3. Start with a small `DCA_AMOUNT`.
 
 ---
 
-## 🔧 Configuración (`.env`)
+## 🔧 Configuration (`.env`)
 
-| Variable | Para qué | Default |
+| Variable | Purpose | Default |
 |---|---|---|
 | `BOT_MODE` | `simulate` / `testnet` / `live` | `simulate` |
-| `TELEGRAM_BOT_TOKEN` | alertas | — |
-| `TELEGRAM_CHAT_ID` | alertas | — |
-| `BINANCE_API_KEY` / `_SECRET` | órdenes (testnet/live) | — |
-| `DCA_SYMBOL` | activo | `BTC/USDT` |
-| `DCA_AMOUNT` | USDT por aporte | `50` |
+| `TELEGRAM_BOT_TOKEN` | alerts | — |
+| `TELEGRAM_CHAT_ID` | alerts | — |
+| `BINANCE_API_KEY` / `_SECRET` | orders (testnet/live) | — |
+| `DCA_SYMBOL` | asset | `BTC/USDT` |
+| `DCA_AMOUNT` | quote (USDT) per buy | `50` |
 | `DCA_FREQUENCY` | `monthly` / `weekly` / `daily` | `monthly` |
 
-Fees en `src/config.py` (`FEE_RATE`): 0.1% estándar, 0.075% con BNB, 0.095% par USDC.
-`.env` está en `.gitignore` — **nunca se sube a git**.
+Fees in `src/config.py` (`FEE_RATE`): 0.1% standard, 0.075% with BNB, 0.095% USDC
+pairs. `.env` is in `.gitignore` — **never committed**.
 
 ---
 
-## 🖥️ Comandos del día a día
+## 🖥️ Everyday commands
 
 ```bash
-.venv/bin/python scripts/run_dca.py        # aporta si toca el período (idempotente)
-.venv/bin/python scripts/dca_status.py     # estado + P&L + análisis de salida
-.venv/bin/python scripts/dca_ledger.py     # historial completo + CSV de transacciones
-.venv/bin/python scripts/dca_backtest.py   # validación histórica del DCA (fees + IRR)
-.venv/bin/python tests/test_dca.py         # tests (8, sin red ni keys)
+.venv/bin/python scripts/run_dca.py        # buy if a period is due (idempotent)
+.venv/bin/python scripts/dca_status.py     # status + P&L + exit analysis
+.venv/bin/python scripts/dca_ledger.py     # full history + transactions CSV
+.venv/bin/python scripts/dca_backtest.py   # historical DCA validation (fees + IRR)
+.venv/bin/python tests/test_dca.py         # tests (no network, no keys)
 ```
 
 ---
 
-## 📂 Estructura
+## 📂 Structure
 
 ```
 src/          config, exchange (simulate/testnet/live), portfolio, dca, notifier
 scripts/      run_dca, dca_status, dca_ledger, dca_backtest, dca_demo, test_telegram, test_testnet
-tests/        test_dca.py (unitarios)
-research/     estrategias fallidas + harness de walk-forward (archivo, standby)
+tests/        test_dca.py
+research/      failed strategies + walk-forward harness (archived, standby)
 docs/         SETUP.md, DEPLOY_ORACLE.md
 ```
 
@@ -188,7 +194,14 @@ docs/         SETUP.md, DEPLOY_ORACLE.md
 
 ## 🔬 Research (standby)
 
-Una estrategia solo gradúa a `live` si **le gana al DCA en validación OOS honesta**.
-El holdout 2025-06 → 2026-06 sigue **intacto** para esa prueba. Ver `research/README.md`.
+A predictive strategy only graduates to `live` if it **beats the DCA in honest
+out-of-sample validation**. The 2025-06 → 2026-06 holdout is kept **untouched** for
+that test. See `research/README.md`.
 
-⚠️ Backtests con sesgo de supervivencia. No es asesoramiento financiero.
+---
+
+## Contributing
+
+PRs welcome — especially research strategies that beat plain DCA in walk-forward.
+Keep secrets out of commits (`.env` is gitignored). This is educational software,
+provided as-is, with no warranty. **Not financial advice.**
