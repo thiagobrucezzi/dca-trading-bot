@@ -110,8 +110,8 @@ crontab -e
 Agregar (DCA todos los días a las 09:05 — solo aporta cuando toca el período;
 y un reporte de estado los lunes 09:10):
 ```cron
-5  9 * * *  cd /home/ubuntu/crypto-trading-bot && set -a && . ./.env && set +a && .venv/bin/python scripts/run_dca.py    >> bot.log 2>&1
-10 9 * * 1  cd /home/ubuntu/crypto-trading-bot && set -a && . ./.env && set +a && .venv/bin/python scripts/dca_status.py >> bot.log 2>&1
+5  9 * * *  cd /home/ubuntu/dca-trading-bot && set -a && . ./.env && set +a && timeout 300 .venv/bin/python scripts/run_dca.py    >> bot.log 2>&1
+10 9 * * 1  cd /home/ubuntu/dca-trading-bot && set -a && . ./.env && set +a && timeout 300 .venv/bin/python scripts/dca_status.py >> bot.log 2>&1
 ```
 
 `run_dca.py` es idempotente: lo corrés todos los días pero solo ejecuta el aporte
